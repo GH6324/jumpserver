@@ -1,4 +1,4 @@
-from django.db.models import QuerySet, Count
+from django.db.models import QuerySet
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
@@ -10,7 +10,7 @@ from common.serializers import (
 )
 from common.serializers.fields import LabeledChoiceField, ObjectRelatedField
 from common.utils import lazyproperty
-from ..const import Category, AllTypes, Protocol
+from ..const import Category, AllTypes, Protocol, SuMethodChoices
 from ..models import Platform, PlatformProtocol, PlatformAutomation
 
 __all__ = ["PlatformSerializer", "PlatformOpsMethodSerializer", "PlatformProtocolSerializer", "PlatformListSerializer"]
@@ -147,6 +147,10 @@ class PlatformProtocolSerializer(serializers.ModelSerializer):
         name, port = data.split('/')
         return {'name': name, 'port': port}
 
+    @staticmethod
+    def get_render_help_text():
+        return _('Protocols, format is ["protocol/port"]')
+
 
 class PlatformCustomField(serializers.Serializer):
     TYPE_CHOICES = [(t, t) for t, c in type_field_map.items()]
@@ -159,13 +163,6 @@ class PlatformCustomField(serializers.Serializer):
 
 
 class PlatformSerializer(ResourceLabelsMixin, WritableNestedModelSerializer):
-    SU_METHOD_CHOICES = [
-        ("sudo", "sudo su -"),
-        ("su", "su - "),
-        ("enable", "enable"),
-        ("super", "super 15"),
-        ("super_level", "super level 15")
-    ]
     id = serializers.IntegerField(
         label='ID', required=False,
         validators=[UniqueValidator(queryset=Platform.objects.all())]
@@ -176,8 +173,8 @@ class PlatformSerializer(ResourceLabelsMixin, WritableNestedModelSerializer):
     protocols = PlatformProtocolSerializer(label=_("Protocols"), many=True, required=False)
     automation = PlatformAutomationSerializer(label=_("Automation"), required=False, default=dict)
     su_method = LabeledChoiceField(
-        choices=SU_METHOD_CHOICES, label=_("Su method"),
-        required=False, default="sudo", allow_null=True
+        choices=SuMethodChoices.choices, label=_("Su method"),
+        required=False, default=SuMethodChoices.sudo, allow_null=True
     )
     custom_fields = PlatformCustomField(label=_("Custom fields"), many=True, required=False)
     assets = ObjectRelatedField(queryset=Asset.objects, many=True, required=False, label=_('Assets'))
